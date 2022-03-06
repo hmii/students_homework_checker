@@ -18,16 +18,20 @@ class Homework:
      
     def __init__(self):
         self.member_dict = {}
+        self.comment_tag = []
+        self.excel_tag = []
         
     
-    def setting(self, class_dic, driver, month, week):
+    def setting(self, class_dic, week):
         self.class_dic = class_dic
-        self.driver = driver
-        self.month = month
         self.week = week 
-        
+        self.driver = webdriver.Chrome('./chromedriver')
+        self.driver.implicitly_wait(10)
+        self.driver.get('https://nid.naver.com/oauth2.0/authorize?svctype=0&response_type=code&client_id=C9hwybENgOtF&state=IWK3A3NUJQVTFVU2KJPK2DRAZ6L7OXGBFYZHHTH3GMTTXKI6A6ALVCF6SFNE3OLHQ4JVWLE6HFC7Q===&redirect_url=https%3A%2F%2Fauth.band.us%2Fexternal_account_login%3Ftype%3Dnaver')
+    
+
+    # 멤버 정보 가져오기 
     def get_member_info(self, class_id):
-        
         url = self.class_dic[class_id]+'/member'
         self.driver.get(url)
         time.sleep(1.5)
@@ -43,8 +47,12 @@ class Homework:
     def export_member_info(self):
         df = pd.DataFrame(self.member_dict) # 학생명단 
         df.to_excel(f"{self.week}주차_member.xlsx", index=False)
-        
-# ------------------------------------            
+
+    def drop_member_info(self, wo_class, wo_name):
+        idx_num = self.member_dict[wo_class][self.member_dict[wo_class].str.contains(wo_name)].index[0]
+        self.member_dict[wo_class] = self.member_dict[wo_class].drop(idx_num)
+
+    #  url 주소 가져오기       
     def url(self, tag):
         self.tag = tag
         url = self.class_dic[self.class_id] + f'/hashtag/{tag}'
@@ -65,7 +73,6 @@ class Homework:
         except :
             pass
         
-# -------------------------------
         
     def page_source(self):
         html = self.driver.page_source
@@ -75,11 +82,11 @@ class Homework:
     
     def get_comment(self):
         try:
-            print(self.class_id, self.tag, "댓글 수: ", 
-                  self.driver.find_element_by_css_selector("span.count").text)
+            
             student_data = {}
             students = self.page_source() # page_source 함수 실행 
-            print("--------------------", len(students))
+            print(self.class_id, self.tag, "댓글 수: ", 
+                  self.driver.find_element_by_css_selector("button.comment._commentCountBtn > span").text, len(students))
             for student in students :
                 name = student.select('button > strong')[0].text
                 try :
@@ -92,8 +99,8 @@ class Homework:
             pass
         
         
-# ---------------------------------------       
     def get_test(self): 
+        
         band_name = self.driver.find_element_by_class_name('uriText').text
         try : 
             # 퀴즈박스 클릭
@@ -126,6 +133,7 @@ class Homework:
             # test_df['멤버'] = test_df['멤버'].str.extract(r'([가-힣].*)')
             test_df = test_df.dropna()
             test_df = test_df[['멤버', '점수']]
+            test_df['점수'] = test_df['점수'].astype(int)
             test_df = test_df.rename(columns = {'멤버':'name', '점수':self.tag})
  
             return test_df 
@@ -133,23 +141,33 @@ class Homework:
             pass
         
         
-# --------------------------------------
-    def pds_tag(self, num):
-        return [f'p-{self.month}-{self.week}-{i}' for i in range(1, num+1)]
+# # --------------------------------------
+#     def pds_tag(self, num):
+#         return [f'p-{self.week}-{i}' for i in range(1, num+1)]
 
-    def voca_tag(self, num):
-        return [f'v-{self.month}-{self.week}-{i}' for i in range(1, num+1)]
+#     def voca_tag(self, num):
+#         return [f'v-{self.week}-{i}' for i in range(1, num+1)]
 
-    def special_tag(self, num):
-        return [f's-{self.month}-{self.week}-{i}' for i in range(1, num+1)]
+#     def special_tag(self, num):
+#         return [f's-{self.week}-{i}' for i in range(1, num+1)]
     
-    def test_tag(self): # 
-        return [f't-{self.month}-{self.week}']
+#     def test_tag(self): # 
+#         return [f't-{self.week}']
     
-    def pareto_tag(self):
-        return [f'1500-{self.month}-{self.week}']
+#     def pareto_tag(self):
+#         return [f'1500-{self.week}']
     
-# --------------------------------------------------    
+
+# making tags
+    def making_comment_tag_list(self, letter, num) :
+        for i in range(1, num+1):
+            self.comment_tag.append(f'{letter}-{self.week}-{i}')
+
+    def making_excel_tag_list(self, letter, num) :
+        for i in range(1, num+1):
+            self.excel_tag.append(f'{letter}-{self.week}-{i}')
+
+
     def comment_scrap(self, tags): 
         self.df = {}
         for tag in tags:
@@ -159,15 +177,19 @@ class Homework:
         return pd.DataFrame(self.df).reset_index().rename(columns={'index':"name"})  
 
 
-    def excel_scrap(self, test_tag): 
-        for tag in test_tag:
+    def excel_scrap(self, excel_tag): 
+        
+        test_df = self.member_dict[self.class_id].to_frame()
+        for tag in excel_tag:
             self.url(tag)
-            return self.get_test()
+            get_test_df = self.get_test()
+            test_df = pd.merge(test_df, get_test_df, on='name', how='outer')
+        return test_df
+
         
-# --------------------------------------------------    
-    def export_excel(self, class_id, tags, test_tag=0):
+    def export_excel(self, class_id):
         self.class_id = class_id
-        
+        tags = self.comment_tag
         comment_df = self.comment_scrap(tags)
         
         self.member_dict[self.class_id].name = 'name' # 프레임으로 변경시 컬럼 이름이 됨 
@@ -177,7 +199,7 @@ class Homework:
         df = pd.merge(name_df, comment_df, on='name', how='outer')
     
         try : 
-            test_df = self.excel_scrap(test_tag) # 테스트가 있다면 ... 
+            test_df = self.excel_scrap(self.excel_tag) # 테스트가 있다면 ... 
             df = pd.merge(df, test_df, on='name', how='outer')
         except:
             pass 
@@ -190,16 +212,15 @@ class Homework:
         
 class Export:
     
-    def __init__(self, class_id, month, week, pre=0):
+    def __init__(self, class_id, week, pre=0):
         self.class_id = class_id
-        self.month = month
         self.week = week 
         self.pre = pre
 
     def week_df(self):
         df = pd.read_excel(f'./{self.week}주차/{self.class_id}_{self.week}주차.xlsx')
         try :
-            week_pre = pd.read_excel(f'./{self.pre}주차/{self.pre}주차_comment.xlsx', 
+            week_pre = pd.read_excel(f'./{self.pre}주차/{self.pre}주차_comment(업).xlsx', 
                                  sheet_name=f'{self.class_id}').drop(columns=['life'])
             df = pd.merge(week_pre, df, on='name', how='outer')
         except :
@@ -209,12 +230,13 @@ class Export:
     def heart(self):
         df = self.week_df()
         df['life'] = df.isin(["X"]).sum(axis=1)
-        for j in range(self.month-1, self.month+1):
-            for i in range(1, 6):
+        ds = pd.Series(df.columns)
+        plus_tag_list = list(ds[ds.str.contains("\+")]) 
+        if len(plus_tag_list) > 0 : 
+            for i in plus_tag_list:
                 try :
-                    df['life'] = np.where(df[f't-{j}-{i}'] == 15, df['life'] -1, df['life'])
-                    df['life'] = np.where(df[f't-{j}-{i}'] == 16, df['life'] -1, df['life'])
-                    df['life'] = np.where(df[f't-{j}-{i}'] == 17, df['life'] -1, df['life'])
+                    df['life'] = np.where(df[i] == 10, df['life'] -1, df['life'])
+                
                 except :
                     pass
         df['life'] = df['life'].apply(lambda x : (7-x) * "🧡")
