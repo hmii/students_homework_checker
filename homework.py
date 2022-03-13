@@ -239,7 +239,7 @@ class Export:
                 
                 except :
                     pass
-        df['life'] = df['life'].apply(lambda x : (7-x) * "🧡")
+        df['life'] = df['life'].apply(lambda x : (12-x) * "🧡")
         df = df.sort_values(by=['name'])
         return df    
 
