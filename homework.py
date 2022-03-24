@@ -243,3 +243,14 @@ class Export:
         df = df.sort_values(by=['name'])
         return df    
 
+class ExportWeekend(Export):
+
+    def week_df(self):
+        df = pd.read_excel(f'./{self.week}주차/{self.class_id}_{self.week}주차.xlsx')
+        try :
+            week_pre = pd.read_excel(f'./{self.pre}주차/{self.pre}주차_comment_weekend(업).xlsx', 
+                                 sheet_name=f'{self.class_id}').drop(columns=['life'])
+            df = pd.merge(week_pre, df, on='name', how='outer')
+        except :
+            pass
+        return df
