@@ -46,7 +46,7 @@ class Homework:
 
     def export_member_info(self):
         df = pd.DataFrame(self.member_dict) # 학생명단 
-        df.to_excel(f"{self.week}주차_member.xlsx", index=False)
+        df.to_excel(f"./{self.week}주차/{self.week}주차_member.xlsx", index=False)
 
     def drop_member_info(self, wo_class, wo_name):
         idx_num = self.member_dict[wo_class][self.member_dict[wo_class].str.contains(wo_name)].index[0]
@@ -85,8 +85,9 @@ class Homework:
             
             student_data = {}
             students = self.page_source() # page_source 함수 실행 
+            comment_num = self.driver.find_element_by_css_selector("button.comment._commentCountBtn > span").text
             print(self.class_id, self.tag, "댓글 수: ", 
-                  self.driver.find_element_by_css_selector("button.comment._commentCountBtn > span").text, len(students))
+                  comment_num, len(students), int(comment_num)-len(students))
             for student in students :
                 name = student.select('button > strong')[0].text
                 try :
@@ -205,7 +206,7 @@ class Homework:
             pass 
         
         df = df.fillna("X")
-        df.to_excel(f'{self.class_id}_{self.week}주차.xlsx', index=False)
+        df.to_excel(f'./{self.week}주차/{self.class_id}_{self.week}주차.xlsx', index=False)
         
         
         
@@ -219,12 +220,9 @@ class Export:
 
     def week_df(self):
         df = pd.read_excel(f'./{self.week}주차/{self.class_id}_{self.week}주차.xlsx')
-        try :
-            week_pre = pd.read_excel(f'./{self.pre}주차/{self.pre}주차_comment(업).xlsx', 
+        week_pre = pd.read_excel(f'./{self.pre}주차/{self.pre}주차_comment(업).xlsx', 
                                  sheet_name=f'{self.class_id}').drop(columns=['life'])
-            df = pd.merge(week_pre, df, on='name', how='outer')
-        except :
-            pass
+        df = pd.merge(week_pre, df, on='name', how='outer')
         return df
         
     def heart(self):
@@ -236,7 +234,6 @@ class Export:
             for i in plus_tag_list:
                 try :
                     df['life'] = np.where(df[i] == 10, df['life'] -1, df['life'])
-                
                 except :
                     pass
         df['life'] = df['life'].apply(lambda x : (12-x) * "🧡")
@@ -247,10 +244,7 @@ class ExportWeekend(Export):
 
     def week_df(self):
         df = pd.read_excel(f'./{self.week}주차/{self.class_id}_{self.week}주차.xlsx')
-        try :
-            week_pre = pd.read_excel(f'./{self.pre}주차/{self.pre}주차_comment_weekend(업).xlsx', 
+        week_pre = pd.read_excel(f'./{self.pre}주차/{self.pre}주차_comment_weekend(업).xlsx', 
                                  sheet_name=f'{self.class_id}').drop(columns=['life'])
-            df = pd.merge(week_pre, df, on='name', how='outer')
-        except :
-            pass
+        df = pd.merge(week_pre, df, on='name', how='outer')
         return df
